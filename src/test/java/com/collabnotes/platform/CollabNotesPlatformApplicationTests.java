@@ -11,6 +11,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CollabNotesPlatformApplicationTests {
@@ -23,6 +24,14 @@ class CollabNotesPlatformApplicationTests {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Test
+    void applicationProvidesAPasswordEncoder() {
+        assertThat(passwordEncoder).isNotNull();
+    }
 
     @Test
     void applicationStartsWithAWorkingDataSource() throws Exception {
