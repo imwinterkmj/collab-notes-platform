@@ -10,6 +10,10 @@ spring:
       validation-timeout: 1000
 
 app:
+  reminders:
+    scheduler-enabled: ${REMINDER_SCHEDULER_ENABLED:true}
+    poll-delay-ms: ${REMINDER_POLL_DELAY_MS:5000}
+    batch-size: ${REMINDER_BATCH_SIZE:100}
   security:
     password-hash:
       # 内存单位为 KiB：19456 KiB = 19 MiB；降低安全基线会使应用启动失败。

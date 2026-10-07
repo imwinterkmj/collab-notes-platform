@@ -3,9 +3,14 @@ package com.collabnotes.platform.note;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.collabnotes.platform.auth.AuthController;
@@ -76,6 +81,17 @@ class NoteErrorTests {
     }
 
     @Test
+    void listFailureIs500NotAnEmptySuccessfulPage(CapturedOutput output) throws Exception {
+        when(service.list(anyLong(), anyInt(), anyInt())).thenThrow(
+                new DataAccessResourceFailureException("SELECT private-title private-content secret-test-password"));
+        var result = mvc.perform(get("/api/notes").session(session))
+                .andExpect(status().isInternalServerError()).andReturn();
+        assertThat(result.getResponse().getContentAsString()).contains("INTERNAL_ERROR")
+                .doesNotContain("SELECT", "private-title", "private-content", "secret-test-password", "items");
+        assertThat(output.getAll()).doesNotContain("private-title", "private-content", "secret-test-password");
+    }
+
+    @Test
     void validationFailureDoesNotLogOrEchoPrivateContents(CapturedOutput output) throws Exception {
         String input = mapper.writeValueAsString(java.util.Map.of(
                 "title", "private-title".repeat(12), "content", "private-content"));
@@ -84,5 +100,59 @@ class NoteErrorTests {
                 .andExpect(status().isBadRequest()).andReturn();
         assertThat(result.getResponse().getContentAsString()).doesNotContain("private-title", "private-content");
         assertThat(output.getAll()).doesNotContain("private-title", "private-content");
+    }
+
+    @Test
+    void updateFailureIs500AndNeverLeaksPrivateText(CapturedOutput output) throws Exception {
+        when(service.update(anyLong(), anyLong(), any())).thenThrow(new DataAccessResourceFailureException(
+                "UPDATE notes private-title private-content secret-test-password"));
+        var result = mvc.perform(CsrfTestSupport.withCsrf(mvc, mapper, put("/api/notes/1"), session)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"private-title\",\"content\":\"private-content\"}"))
+                .andExpect(status().isInternalServerError()).andReturn();
+        assertThat(result.getResponse().getContentAsString()).contains("INTERNAL_ERROR")
+                .doesNotContain("UPDATE", "private-title", "private-content", "secret-test-password");
+        assertThat(output.getAll()).doesNotContain("private-title", "private-content", "secret-test-password");
+    }
+
+    @Test
+    void updateValidationDoesNotLogOrEchoPrivateText(CapturedOutput output) throws Exception {
+        var result = mvc.perform(CsrfTestSupport.withCsrf(mvc, mapper, put("/api/notes/1"), session)
+                .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(java.util.Map.of(
+                        "title", "private-title".repeat(12), "content", "private-content"))))
+                .andExpect(status().isBadRequest()).andReturn();
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("private-title", "private-content");
+        assertThat(output.getAll()).doesNotContain("private-title", "private-content");
+    }
+
+    @Test
+    void completionFailureIs500AndDoesNotLeakSqlOrPrivateData(CapturedOutput output) throws Exception {
+        when(service.setCompletion(anyLong(), anyLong(), any())).thenThrow(new DataAccessResourceFailureException(
+                "UPDATE notes private-title private-content secret-test-password"));
+        var result = mvc.perform(CsrfTestSupport.withCsrf(mvc, mapper, patch("/api/notes/1/completion"), session)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"completed\":true}"))
+                .andExpect(status().isInternalServerError()).andReturn();
+        assertThat(result.getResponse().getContentAsString()).contains("INTERNAL_ERROR")
+                .doesNotContain("UPDATE", "private-title", "private-content", "secret-test-password");
+        assertThat(output.getAll()).doesNotContain("private-title", "private-content", "secret-test-password");
+    }
+
+    @Test
+    void invalidCompletionDoesNotEchoOrLogSuppliedString(CapturedOutput output) throws Exception {
+        var result = mvc.perform(CsrfTestSupport.withCsrf(mvc, mapper, patch("/api/notes/1/completion"), session)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"completed\":\"private-state\"}"))
+                .andExpect(status().isBadRequest()).andReturn();
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("private-state", "Exception");
+        assertThat(output.getAll()).doesNotContain("private-state");
+    }
+    @Test
+    void deleteFailureIsNotReportedAsSuccessfulOrMissing(CapturedOutput output) throws Exception {
+        doThrow(new DataAccessResourceFailureException("DELETE notes private-content secret-test-password"))
+                .when(service).delete(anyLong(), anyLong());
+        var result = mvc.perform(CsrfTestSupport.withCsrf(mvc, mapper, delete("/api/notes/1"), session))
+                .andExpect(status().isInternalServerError()).andReturn();
+        assertThat(result.getResponse().getContentAsString()).contains("INTERNAL_ERROR")
+                .doesNotContain("DELETE", "private-content", "secret-test-password");
+        assertThat(output.getAll()).doesNotContain("private-content", "secret-test-password");
     }
 }

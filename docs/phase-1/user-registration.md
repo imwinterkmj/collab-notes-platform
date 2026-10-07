@@ -10,7 +10,7 @@
 本次实现没有下载新依赖，也没有引入新基础设施。
 
 随后已完成最小登录闭环，当前共 69 项快速测试通过，真实 MySQL 注册与登录验收通过。
-登录与退出见 [登录说明](phase-1-user-login.md)。备忘录和提醒尚未实现，按后续小步骤推进。
+登录与退出见 [登录说明](user-login.md)。备忘录和提醒尚未实现，按后续小步骤推进。
 
 ## 为什么先设计用户
 
@@ -63,10 +63,10 @@ ID 是内部稳定标识，用户名是用户使用的登录名。以后修改�
 MD5 或普通 SHA-256 代替密码哈希。登录时调用库的校验函数，不解密还原密码。
 
 `VARCHAR(255)` 为编码结果及后续算法调整留出空间，不代表原始密码最多 255 个字符。
-原始密码规则为 15～128 个 Unicode 码点，不允许全空白；允许中文、emoji 和空格，
+当前按用户自行选择的本地练习规则：原始密码为 1～128 个 Unicode 码点，不允许全空白；允许中文、emoji 和空格，
 不强制字符组合，不悄悄截断、去空格或改变大小写。例如一个 emoji 通常占一个码点，
 组合字符可能占多个码点；此处不是按屏幕显示字形或 Java UTF-16 的 `char` 数量计数。
-下限结合当前未接入 MFA 的情况确定，参考
+该下限只用于用户选择的本地练习，不应当作正式安全建议；上线前应重新评估并参考
 [OWASP 身份认证指南](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#implement-proper-password-strength-controls)。
 
 密码与密码哈希都不进入 API 响应，也不记录到日志。相关依据见
@@ -318,13 +318,13 @@ curl.exe -c "%TEMP%\collab-notes-session.txt" http://localhost:8080/api/auth/csr
 
 ```cmd
 set "CSRF=这里替换成刚返回的token"
-curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/http/register-example.json" http://localhost:8080/api/users/register
+curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/phase-1/http/register-example.json" http://localhost:8080/api/users/register
 ```
 
 公开示例文件使用用户名 `winter_01` 和占位密码 `example-long-passphrase`，只用于本地
 学习，不使用真实账号密码。第一次成功为 201，再次提交相同用户名为 409；如果该用户名
 已存在，首次尝试也会是 409。修改示例用户名即可测试另一个账号，不要删表重试。
-已有账号可以直接按 [登录说明](phase-1-user-login.md#你现在怎么操作) 进行登录与退出。
+已有账号可以直接按 [登录说明](user-login.md#你现在怎么操作) 进行登录与退出。
 旧的不带 CSRF 的 curl 命令现在返回 403，这是防护先于业务执行，不是数据库出了问题。
 Cookie 临时文件不提交 Git，用完后按登录说明清理；不要把真实 token 或 Cookie 写入文档。
 

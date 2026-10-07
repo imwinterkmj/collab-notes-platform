@@ -178,7 +178,10 @@ class NoteIntegrationTests {
         mvc.perform(CsrfTestSupport.withCsrf(mvc, mapper, post("/api/notes"), session)
                 .contentType(MediaType.TEXT_PLAIN).content("private-text"))
                 .andExpect(status().isUnsupportedMediaType());
-        mvc.perform(get("/api/notes").session(session)).andExpect(status().isMethodNotAllowed());
+        mvc.perform(CsrfTestSupport.withCsrf(mvc, mapper,
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/notes"), session)
+                .contentType(MediaType.APPLICATION_JSON).content(json("test", "test")))
+                .andExpect(status().isMethodNotAllowed());
     }
 
     @Test

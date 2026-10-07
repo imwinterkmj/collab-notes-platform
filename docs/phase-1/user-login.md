@@ -104,7 +104,7 @@ set "CSRF=这里替换成刚返回的token"
 如果已有 `winter_01`，跳过注册。只有准备创建另一个学习账号时才调用：
 
 ```cmd
-curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/http/register-example.json" http://localhost:8080/api/users/register
+curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/phase-1/http/register-example.json" http://localhost:8080/api/users/register
 ```
 
 注册成功 201；已有同名账号时 409 是预期结果，不要删表来重试。
@@ -112,7 +112,7 @@ curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session
 ### 3. 登录，再查看身份
 
 ```cmd
-curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/http/register-example.json" http://localhost:8080/api/auth/login
+curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/phase-1/http/register-example.json" http://localhost:8080/api/auth/login
 curl.exe -i -b "%TEMP%\collab-notes-session.txt" http://localhost:8080/api/auth/me
 ```
 
@@ -176,7 +176,7 @@ mvn --offline --batch-mode --no-transfer-progress -Ddebug=false -Dlogging.level.
 当前仅限本机学习：本地 HTTP 的 Secure=false；正式部署必须 HTTPS，并设置
 `SESSION_COOKIE_SECURE=true`。不要开放公网，也不要启用 DEBUG/TRACE 凭据链路日志或记录
 Cookie、CSRF token 和请求体。尚未实现限流、防撞库、密码重置、会话共享、全部设备退出或
-系统推送。后续已实现备忘录创建/本人详情的用户隔离，见 [备忘录说明](phase-1-notes.md)。
+系统推送。后续已实现备忘录创建/本人详情的用户隔离，见 [备忘录说明](notes.md)。
 测试通过不是高并发容量结论。
 
 认证小目标完成后已建立备忘录表并实现创建/本人详情，每次访问都从会话取身份，而不是

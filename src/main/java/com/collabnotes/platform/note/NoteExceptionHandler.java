@@ -3,6 +3,8 @@ package com.collabnotes.platform.note;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import com.collabnotes.platform.reminder.ReminderException;
+
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -14,7 +16,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-@RestControllerAdvice(assignableTypes = NoteController.class)
+@RestControllerAdvice(assignableTypes = {NoteController.class, NoteSaveController.class})
 public class NoteExceptionHandler extends ResponseEntityExceptionHandler {
     public record NoteError(String code, String message, Map<String, String> fields) { }
 
@@ -37,7 +39,7 @@ public class NoteExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception exception, Object body,
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        return new ResponseEntity<>(new NoteError("INVALID_REQUEST", "请求格式、编号或方法不正确", Map.of()),
+        return new ResponseEntity<>(new NoteError("INVALID_REQUEST", "请求格式、编号、分页参数或方法不正确", Map.of()),
                 headers, status);
     }
 
@@ -45,6 +47,12 @@ public class NoteExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<NoteError> notFound() {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new NoteError("NOTE_NOT_FOUND", "备忘录不存在或不可访问", Map.of()));
+    }
+
+    @ExceptionHandler(ReminderException.class)
+    public ResponseEntity<NoteError> reminderFailure(ReminderException exception) {
+        return ResponseEntity.status(exception.status())
+                .body(new NoteError(exception.code(), exception.getMessage(), Map.of()));
     }
 
     @ExceptionHandler(Exception.class)

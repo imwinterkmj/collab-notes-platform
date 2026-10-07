@@ -14,7 +14,7 @@ public record RegisterUserRequest(
         String username,
         @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
         @NotBlank(message = "密码不能为空或全为空白")
-        @CodePointLength(min = 15, max = 128, message = "密码须为 15～128 个 Unicode 字符")
+        @CodePointLength(min = 1, max = 128, message = "密码须为 1～128 个 Unicode 字符")
         @JsonDeserialize(using = RegistrationStringDeserializer.class)
         String password
 ) {

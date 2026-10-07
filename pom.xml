@@ -15,7 +15,7 @@
     <artifactId>collab-notes-platform</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>collab-notes-platform</name>
-    <description>Collaborative notes platform for learning production-grade backend engineering</description>
+    <description>用于学习后端工程的备忘录与可靠提醒平台</description>
 
     <properties>
         <java.version>21</java.version>

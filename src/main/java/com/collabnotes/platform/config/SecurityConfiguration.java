@@ -76,6 +76,10 @@ public class SecurityConfiguration {
         });
 
         http.csrf(csrf -> csrf.csrfTokenRepository(csrfRepository).csrfTokenRequestHandler(csrfHandler))
+                .headers(headers -> headers.contentSecurityPolicy(policy -> policy
+                        .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self'; "
+                                + "connect-src 'self'; img-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; "
+                                + "frame-ancestors 'none'; form-action 'self'")))
                 .securityContext(context -> context.securityContextRepository(contextRepository)
                         .requireExplicitSave(true))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
@@ -83,6 +87,7 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health", "/api/auth/csrf").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/", "/index.html", "/app.js", "/reminder-preferences.js", "/reminder-assets.js", "/reminder-alerts.js", "/styles.css").permitAll()
                         .requestMatchers("/api/users/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .anyRequest().authenticated())

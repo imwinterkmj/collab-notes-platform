@@ -29,11 +29,24 @@ public final class HttpSessionTestClient {
     }
 
     public ResponseEntity<String> post(String path, Object payload) throws Exception {
+        return write("POST", path, payload);
+    }
+
+    public ResponseEntity<String> put(String path, Object payload) throws Exception {
+        return write("PUT", path, payload);
+    }
+
+    public ResponseEntity<String> patch(String path, Object payload) throws Exception {
+        return write("PATCH", path, payload);
+    }
+    public ResponseEntity<String> delete(String path) throws Exception { return write("DELETE", path, null); }
+
+    private ResponseEntity<String> write(String method, String path, Object payload) throws Exception {
         var csrf = mapper.readTree(get("/api/auth/csrf").getBody());
         return send(HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .header(csrf.get("headerName").asText(), csrf.get("token").asText())
                 .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload))));
+                .method(method, HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload))));
     }
 
     public String sessionId() {

@@ -5,11 +5,11 @@
 2026-10-07 已经用户明确授权，在本机 MySQL 8.4.11 的 collab_notes 执行并核验手动脚本
 `src/main/resources/db/manual/002_create_notes.sql`，建立 notes 表，保留已有学习账号。
 **已实现创建和本人详情，自动测试及真实 MySQL 验收通过。**
-本次不下载依赖、不添加中间件、不修改现有注册与登录业务逻辑；不实现提醒、标签、列表、
-修改、删除或客户端界面。登录与当前用户查询已由用户在 CMD 验证，退出及备忘录仍待手动验证。
+创建/详情这个小目标不下载依赖、不添加中间件、不修改现有注册与登录业务逻辑；不实现提醒、标签、
+修改、删除或客户端界面。用户已在 CMD 验证登录、当前用户查询及创建/详情；退出仍待手动验证。
 
 当前已完成“已登录用户创建一条备忘录，并且只能查看自己的详情”的小闭环。
-先复盘，再分步加入列表、编辑、完成状态切换、删除和提醒。
+后续已增加[本人分页列表](notes-list.md)和[编辑](notes-update.md)；完成状态切换、删除和提醒仍按小目标推进。
 
 ## 为什么需要另一张表
 
@@ -76,13 +76,13 @@ WHERE id = ? AND user_id = ?;
 第一个参数来自路径中的备忘录 ID，第二个来自服务端验证后的身份，不能来自请求参数。
 不先按 ID 查询并返回正文再检查权限，也不通过“ID 很难猜”代替授权。
 查不到与属于别人的记录都统一返回 404，避免通过响应区别泄露其他用户记录是否存在。
-未来的列表、修改、删除和提醒操作也必须保留用户范围，而不是只校验是否登录。
+已实现的列表同样限定当前用户；未来修改、删除和提醒操作也必须保留用户范围，而不是只校验是否登录。
 
 ## 两个已实现的接口
 
 ### 创建：POST /api/notes
 
-需要已登录的 Cookie 和当前会话的 CSRF 校验码。请求示例保存在 `docs/http/create-note-example.json`：
+需要已登录的 Cookie 和当前会话的 CSRF 校验码。请求示例保存在 `docs/phase-1/http/create-note-example.json`：
 
 ```json
 {
@@ -153,7 +153,7 @@ H2 与 MySQL 的 Unicode 字符长度语义不同，快速测试放宽 H2 标题
 
 这是测试步骤，不是日常启动或脚本调用教程。当前表已建立，不再执行建表 SQL。
 如果 8080 仍是旧进程，需先重启应用让新接口生效；重启会清空内存会话，需按
-[登录说明](phase-1-user-login.md#3-登录再查看身份) 重新登录，不能继续使用旧 Cookie。
+[登录说明](user-login.md#3-登录再查看身份) 重新登录，不能继续使用旧 Cookie。
 以下假定已经使用 CMD 登录，并把当前 Cookie 保存在 `%TEMP%\collab-notes-session.txt`。
 
 ### 创建一条备忘录
@@ -170,7 +170,7 @@ curl.exe -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.tx
 
 ```cmd
 set "CSRF=这里替换成刚返回的token"
-curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/http/create-note-example.json" http://localhost:8080/api/notes
+curl.exe -i -b "%TEMP%\collab-notes-session.txt" -c "%TEMP%\collab-notes-session.txt" -H "X-CSRF-TOKEN: %CSRF%" -H "Content-Type: application/json" --data-binary "@docs/phase-1/http/create-note-example.json" http://localhost:8080/api/notes
 ```
 
 预期 201，返回 id、标题、正文、completed=false，以及两个相同的 UTC 时间。

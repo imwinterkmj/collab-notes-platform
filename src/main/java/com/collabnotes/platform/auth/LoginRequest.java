@@ -11,7 +11,7 @@ import org.hibernate.validator.constraints.CodePointLength;
 public record LoginRequest(
         @NotBlank @Pattern(regexp = "^[a-z0-9_]{3,32}$")
         @JsonDeserialize(using = RegistrationStringDeserializer.class) String username,
-        @NotBlank @CodePointLength(min = 15, max = 128)
+        @NotBlank @CodePointLength(min = 1, max = 128)
         @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
         @JsonDeserialize(using = RegistrationStringDeserializer.class) String password
 ) {

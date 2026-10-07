@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>拾记 · 备忘录与提醒</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/reminder-preferences.js" defer></script>
+  <script src="/reminder-assets.js" defer></script>
+  <script src="/reminder-alerts.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">记</span><span>拾记 <small>把重要的事，留在心上</small></span></a>
+    <div id="account-bar" hidden><span id="account-name"></span><button id="open-settings" class="quiet settings-trigger" type="button" aria-label="打开设置" title="设置" aria-haspopup="dialog" aria-controls="settings-dialog"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m9 3 1-2h4l1 2 2 1 2-.2 2 3-1 2v4l1 2-2 3-2-.2-2 1-1 2h-4l-1-2-2-1-2 .2-2-3 1-2V9L3 7l2-3L7 4Z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="11" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg><span>设置</span></button><button id="logout" class="quiet">退出登录</button></div>
+    <span id="local-badge" class="tag">本地学习版 · MVP</span>
+  </header>
+  <main>
+    <section id="auth-view" class="auth-layout">
+      <div class="intro">
+        <span class="eyebrow">少一点遗忘，多一点从容</span>
+        <h1>想到的，记下来。<br>重要的，提醒你。</h1>
+        <p>一条面试安排，一个突然冒出的想法，或明天要完成的小事。<br>在这里留一笔，给它一个恰好的时间。</p>
+        <div class="preview-note"><span class="tag">我的计划</span><h2>周五下午面试</h2><p>提前准备简历，复习项目里的事务和用户隔离。</p><div class="preview-footer"><span>○ 未完成</span><span>◷ 提前半小时提醒</span></div></div>
+        <p class="fine-print">支持页面提醒，可主动开启声音与电脑桌面通知；暂不支持关页或手机锁屏推送。<br>同一账号共享服务端数据，暂不支持离线编辑或冲突检测。</p>
+      </div>
+      <section class="card auth-card" aria-label="账号登录">
+        <div class="tabs"><button id="login-tab" class="active" type="button" aria-pressed="true">登录</button><button id="register-tab" type="button" aria-pressed="false">注册</button></div>
+        <h2 id="auth-title">欢迎回来</h2><p id="auth-subtitle" class="muted">登录后，继续整理你的备忘录。</p>
+        <form id="auth-form">
+          <label for="username">用户名</label><input id="username" name="username" required pattern="[a-z0-9_]{3,32}" autocomplete="username" placeholder="3～32 位小写字母、数字或下划线">
+          <label for="password">密码</label><input id="password" name="password" type="password" required autocomplete="current-password" placeholder="1～128 个字符，保留原始空格">
+          <p class="muted small">只用于本机学习。请勿输入其他网站正在使用的密码。</p>
+          <button id="auth-submit" class="primary wide" type="submit">登录</button>
+        </form>
+        <p id="auth-message" class="form-message" role="status" aria-live="polite"></p>
+      </section>
+    </section>
+
+    <section id="workspace" hidden>
+      <div class="workspace-heading"><div><span class="eyebrow">给日常留一点秩序</span><h1>我的备忘录</h1></div><div class="workspace-actions"><button id="open-trash" class="quiet" type="button" aria-haspopup="dialog" aria-controls="trash-dialog">回收站</button><button id="new-note" class="primary" type="button" aria-haspopup="dialog" aria-controls="editor-dialog">＋ 新建备忘录</button></div></div>
+      <p id="workspace-message" class="form-message" role="status" aria-live="polite"></p>
+      <section class="active-alerts" aria-labelledby="active-alerts-heading">
+        <div class="panel-heading"><h2 id="active-alerts-heading">待处理提醒</h2><button id="restore-alerts" type="button" class="quiet">显示收起的卡片</button></div>
+        <p id="alert-summary" class="small" role="status" aria-live="polite">正在检查未读提醒……</p>
+        <div id="active-alerts-list"></div>
+        <p id="alert-sync-status" class="small muted" role="status"></p>
+        <p id="alert-sound-status" class="small sound-readiness" role="status" aria-live="polite"></p>
+      </section>
+      <div class="workspace-grid">
+        <section class="card note-panel" aria-label="备忘录列表">
+          <div class="panel-heading"><h2>备忘录</h2><button id="refresh-notes" class="quiet">刷新</button></div>
+          <p class="muted small">未完成优先，同组按更新时间倒序。点击备忘录打开编辑；其他设备修改后点击刷新。</p>
+          <div id="notes-list"></div>
+          <div class="pager"><button id="notes-prev" class="quiet">上一页</button><span id="notes-page" class="muted small"></span><button id="notes-next" class="quiet">下一页</button></div>
+        </section>
+        <aside class="card notification-panel" aria-label="站内通知">
+          <div class="panel-heading"><h2>站内通知</h2><button id="refresh-notifications" class="quiet">刷新</button></div>
+          <p id="notification-status" class="muted small">登录后自动检查，每 10 秒刷新。</p>
+          <div id="notifications-list"></div>
+          <div class="pager"><button id="notifications-prev" class="quiet">上一页</button><span id="notifications-page" class="muted small"></span><button id="notifications-next" class="quiet">下一页</button></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <dialog id="editor-dialog" class="editor-dialog" aria-labelledby="editor-heading">
+    <header class="modal-header"><div><span class="eyebrow">记录与提醒</span><h2 id="editor-heading">新建备忘录</h2></div><div class="modal-header-actions"><span id="note-state" class="tag">未保存</span><button id="editor-close" class="quiet" type="button" aria-label="关闭编辑" autofocus>关闭</button></div></header>
+    <div class="modal-body">
+      <form id="note-form">
+        <label for="note-title">标题</label><input id="note-title" required placeholder="例如：周五下午面试" autocomplete="off">
+        <label for="note-content">正文</label><textarea id="note-content" rows="8" placeholder="写下细节，也可以留空。"></textarea>
+      <p id="note-times" class="muted small"></p>
+      <section class="reminder-section" aria-labelledby="reminder-heading">
+        <div class="panel-heading"><h2 id="reminder-heading">一次性提醒</h2><span class="tag amber">到期提醒</span></div>
+        <p id="reminder-state" class="muted small">可直接设置提醒时间，与内容一起保存。</p>
+        <label class="switch-label" for="reminder-enabled"><input id="reminder-enabled" type="checkbox">启用一次性提醒</label>
+        <label for="reminder-time">提醒时间 <span class="muted small">（当前设备本地时间）</span></label><input id="reminder-time" type="datetime-local" step="1">
+        <p class="muted small">新建时就能填写时间；底部“保存”一起提交内容和提醒。取消勾选后保存可取消待执行提醒；只改正文不会重新触发提醒。已完成的备忘录需先恢复未完成才能设置新提醒。</p>
+        <p id="editor-sound-ready" class="small sound-readiness" role="status" aria-live="polite"></p>
+        <button id="editor-restore-sound" class="quiet" type="button" hidden>恢复到期声音</button>
+      </section>
+      </form>
+      <section class="settings-section" aria-labelledby="style-heading">
+        <h3 id="style-heading">提醒样式与图片</h3>
+        <label for="alert-style">提醒样式</label><select id="alert-style"><option value="card">普通常驻卡片</option><option value="large">醒目大弹层＋常驻卡片</option></select>
+        <label for="alert-artwork">大弹层插画</label><select id="alert-artwork"><option value="bell">铃铛</option><option value="note">备忘录</option><option value="none">不显示插画</option><option id="custom-image-option" value="custom" disabled>我导入的图片</option></select>
+        <label for="image-import">导入图片</label><input id="image-import" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" aria-describedby="image-format-hint image-file-status image-import-message">
+        <p id="image-format-hint" class="small muted">可选格式：PNG（.png）、JPEG（.jpg / .jpeg）、WebP（.webp）。最多 2 MB；宽高各不超过 4096，总像素不超过 1200 万。</p>
+        <p id="image-import-message" class="form-message" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p id="image-file-status" class="small muted">尚未导入图片。</p><button id="remove-image" class="quiet" type="button" disabled>移除导入副本</button>
+        <div class="alert-actions"><button id="preview-popup" class="secondary" type="button">预览大弹层</button></div>
+        <p class="small muted">大弹层仅在本网页内展示，不覆盖其他软件；关闭预览会回到这里，不清空正在编辑的内容。</p>
+      </section>
+      <section class="settings-section" aria-labelledby="melody-heading">
+        <h3 id="melody-heading">铃声与音量</h3>
+        <label for="sound-melody">铃声</label><select id="sound-melody"><option value="chime">清脆双音</option><option value="soft">柔和三音</option><option value="clear">明亮提示</option><option id="custom-audio-option" value="custom" disabled>我导入的铃声</option></select>
+        <label for="audio-import">导入铃声</label><input id="audio-import" type="file" accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg" aria-describedby="audio-format-hint audio-file-status audio-import-message">
+        <p id="audio-format-hint" class="small muted">可选格式：MP3（.mp3）、WAV（.wav）、OGG（.ogg）。最多 5 MB；时长大于 0 且不超过 60 秒，须当前浏览器可解码。导入不会自动播放。</p>
+        <p id="audio-import-message" class="form-message" role="status" aria-live="polite" aria-atomic="true"></p>
+        <p id="audio-file-status" class="small muted">尚未导入铃声。</p><button id="remove-audio" class="quiet" type="button" disabled>移除导入副本</button>
+        <label for="sound-volume">音量 <output id="sound-volume-value" for="sound-volume">50%</output></label><input id="sound-volume" type="range" min="0" max="100" step="1" value="50">
+        <div class="alert-actions"><button id="sound-test" class="quiet" type="button">试听铃声</button><button id="sound-stop" class="quiet" type="button" disabled>停止播放</button></div>
+        <p id="editor-sound-status" class="small muted" role="status"></p>
+        <p class="small muted">试听不会自动开启到期声音。总开关在右上角“设置”；已开启时，点击保存也会尝试恢复本页播放。</p>
+      </section>
+      <p id="asset-status" class="form-message" role="status" aria-live="polite" aria-atomic="true"></p>
+      <p class="small muted">目前样式、铃声与导入副本仍由当前账号在此浏览器共用，修改后自动保存；不是单条备忘录独立设置。仅调整入口，不上传文件，不修改原文件，不保存备忘录内容到浏览器。换设备需重新设置 / 导入。</p>
+    </div>
+    <footer class="modal-footer">
+      <p id="editor-message" class="form-message" role="status" aria-live="polite"></p>
+      <div class="editor-actions"><button id="save-note" class="primary" type="submit" form="note-form">保存</button><button id="toggle-note" class="quiet" type="button" disabled>标记完成</button><button id="delete-note" class="danger" type="button" disabled>删除</button></div>
+    </footer>
+  </dialog>
+  <dialog id="trash-dialog" class="trash-dialog" aria-labelledby="trash-heading">
+    <header class="modal-header"><div><span class="eyebrow">删除后还有一次机会</span><h2 id="trash-heading">回收站</h2></div><button id="trash-close" class="quiet" type="button" aria-label="关闭回收站" autofocus>关闭</button></header>
+    <div class="modal-body">
+      <p class="small muted">每个账号保留最近删除的 30 条，不是 30 天。超出时最早的记录永久移出；旧版本已永久删除的数据不能找回。</p>
+      <p id="trash-summary" class="small muted"></p>
+      <div class="trash-grid"><div id="trash-list" aria-label="已删除的备忘录"></div><section id="trash-preview" hidden aria-labelledby="trash-title"><h3 id="trash-title"></h3><p id="trash-times" class="small muted"></p><p id="trash-content" class="trash-content"></p></section></div>
+    </div>
+    <footer class="modal-footer"><p id="trash-message" class="form-message" role="status" aria-live="polite"></p><div class="editor-actions"><button id="trash-restore" class="primary" type="button" disabled>恢复选中备忘录</button><span class="small muted">保留内容与完成状态，旧提醒/通知不会恢复。</span></div></footer>
+  </dialog>
+  <dialog id="settings-dialog" class="settings-dialog" aria-labelledby="settings-heading">
+    <div class="settings-header"><div><span class="eyebrow">让提醒适合你</span><h2 id="settings-heading">设置</h2></div><button id="settings-close" class="quiet" type="button" aria-label="关闭设置" autofocus>关闭</button></div>
+    <section class="settings-section" aria-labelledby="sound-heading">
+      <h3 id="sound-heading">提示音</h3>
+      <label class="switch-label" for="sound-enabled"><input id="sound-enabled" type="checkbox">到期时播放提示音</label>
+      <div class="alert-actions"><button id="sound-toggle" class="secondary" type="button">恢复声音</button></div>
+      <p id="sound-status" class="small muted" role="status"></p>
+      <p class="small muted">保存开关不代表浏览器允许播放。重开页面后，可能需要点击“恢复声音”。选择铃声、音量和试听请打开备忘录编辑弹窗。</p>
+    </section>
+    <section class="settings-section" aria-labelledby="desktop-heading">
+      <h3 id="desktop-heading">电脑桌面通知</h3>
+      <label class="switch-label" for="desktop-enabled"><input id="desktop-enabled" type="checkbox">尝试显示桌面通知（可能展示标题）</label>
+      <div class="alert-actions"><button id="desktop-toggle" class="secondary" type="button">申请 / 检查权限</button><button id="desktop-test" class="quiet" type="button" disabled>测试桌面通知</button></div>
+      <p id="desktop-status" class="small muted" role="status"></p>
+    </section>
+    <p id="preference-status" class="small" role="status" aria-live="polite"></p>
+    <p class="small muted settings-boundary">全局开关仅存当前浏览器，按账号区分，不跨设备同步。网页须保持打开；后台可能暂停，切回补查。关闭网页、休眠和手机锁屏暂无可靠实时推送。</p>
+  </dialog>
+  <dialog id="reminder-dialog" class="large-reminder" aria-labelledby="popup-title" aria-describedby="popup-meta">
+    <div class="popup-top"><span id="popup-kind" class="tag amber">提醒到期</span><button id="popup-close" class="quiet" type="button" aria-label="关闭大提醒" autofocus>关闭</button></div>
+    <div id="popup-artwork" class="popup-art" aria-hidden="true">
+      <img id="popup-art-custom" alt="" hidden>
+      <svg id="popup-art-bell" viewBox="0 0 240 160"><ellipse cx="120" cy="145" rx="62" ry="8" fill="#e7d7aa"/><circle cx="120" cy="75" r="65" fill="#f6e7bd"/><path d="M78 114c14-13 12-27 12-45a30 30 0 0 1 60 0c0 18-2 32 12 45Z" fill="#dcaa50" stroke="#8a612b" stroke-width="4" stroke-linejoin="round"/><path d="M110 122a10 10 0 0 0 20 0M115 36v-7a5 5 0 0 1 10 0v7M68 53l-9-8M172 53l9-8" fill="none" stroke="#8a612b" stroke-width="4" stroke-linecap="round"/><path d="M102 72c0-10 4-16 10-20" fill="none" stroke="#fff6d8" stroke-width="5" stroke-linecap="round"/></svg>
+      <svg id="popup-art-note" viewBox="0 0 240 160" hidden><ellipse cx="120" cy="145" rx="62" ry="8" fill="#cfdfd0"/><circle cx="120" cy="75" r="65" fill="#e4eee1"/><rect x="79" y="24" width="82" height="113" rx="10" fill="#fffef8" stroke="#527e5b" stroke-width="4"/><path d="M98 53h44M98 72h44M98 91h27" stroke="#9db4a0" stroke-width="5" stroke-linecap="round"/><path d="m130 114 8 8 19-23" fill="none" stroke="#527e5b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h2 id="popup-title">重要的事，到时间了</h2><p id="popup-meta" class="muted"></p><p id="popup-count" class="small muted"></p>
+    <div class="popup-actions"><button id="popup-view" class="secondary" type="button">查看备忘录</button><button id="popup-read" class="primary" type="button">标为已读</button></div>
+    <p id="popup-message" class="form-message" role="status" aria-live="polite"></p>
+    <p class="small muted">关闭只收起本次弹层，未读提醒仍保留在主页。</p>
+  </dialog>
+  <footer>拾记 · 简单记录，认真提醒 <span>Session + MySQL · 本地单实例</span></footer>
+</body>
+</html>

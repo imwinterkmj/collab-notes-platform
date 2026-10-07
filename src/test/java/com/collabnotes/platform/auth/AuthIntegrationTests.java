@@ -132,7 +132,7 @@ class AuthIntegrationTests {
     @ValueSource(strings = {"{}", "null", "{invalid}",
             "{\"username\":123,\"password\":\"test-only-passphrase\"}",
             "{\"username\":\"test_user\",\"password\":true}",
-            "{\"username\":\"test_user\",\"password\":\"short\"}",
+            "{\"username\":\"test_user\",\"password\":\"\"}",
             "{\"username\":\"test_user\",\"password\":\"test-only-passphrase\",\"id\":1}",
             "{\"username\":\"test_user\",\"password\":\"test-only-passphrase\"} {}"})
     void invalidLoginRequestsAreNotEchoed(String input) throws Exception {
@@ -141,6 +141,16 @@ class AuthIntegrationTests {
                 .andReturn();
         assertThat(result.getResponse().getContentAsString())
                 .doesNotContain("test-only-passphrase", "Exception", "password_hash");
+    }
+
+    @Test
+    void userSelectedOneCharacterPasswordCanLogin() throws Exception {
+        String name = "short_" + UUID.randomUUID().toString().replace("-", "").substring(0, 22);
+        registration.register(new RegisterUserRequest(name, "🔔"));
+        mvc.perform(csrf(post("/api/auth/login"), null).contentType(MediaType.APPLICATION_JSON)
+                .content(json(name, "🔔"))).andExpect(status().isOk());
+        mvc.perform(csrf(post("/api/auth/login"), null).contentType(MediaType.APPLICATION_JSON)
+                .content(json(name, "x"))).andExpect(status().isUnauthorized());
     }
 
     @Test

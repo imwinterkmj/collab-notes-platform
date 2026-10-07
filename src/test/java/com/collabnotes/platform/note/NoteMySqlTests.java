@@ -94,10 +94,42 @@ class NoteMySqlTests {
         var lengths = jdbc.queryForMap("SELECT CHAR_LENGTH(title) AS tl, CHAR_LENGTH(content) AS cl FROM notes WHERE id = ?", unicodeId);
         assertThat(((Number) lengths.get("tl")).intValue()).isEqualTo(120);
         assertThat(((Number) lengths.get("cl")).intValue()).isEqualTo(10000);
-        assertThat(owner.post("/api/notes", Map.of("title", title, "content", "")).getStatusCode())
-                .isEqualTo(HttpStatus.CREATED);
+        var repeated = owner.post("/api/notes", Map.of("title", title, "content", ""));
+        assertThat(repeated.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        long repeatedId = mapper.readTree(repeated.getBody()).get("id").asLong();
         long beforeConstraints = count(ownerId);
         assertThat(beforeConstraints).isEqualTo(3);
+
+        // 仅改变本次测试账号的时间，验证 ID 较小但更新较新的记录排在最前。
+        var tieTime = LocalDateTime.ofInstant(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS),
+                ZoneOffset.UTC);
+        jdbc.update("UPDATE notes SET updated_at = ? WHERE user_id = ?", tieTime, ownerId);
+        jdbc.update("UPDATE notes SET updated_at = ? WHERE id = ? AND user_id = ?",
+                tieTime.plusSeconds(1), noteId, ownerId);
+        var listed = owner.get("/api/notes?page=0&size=2");
+        assertThat(listed.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var firstPage = mapper.readTree(listed.getBody());
+        assertThat(firstPage.size()).isEqualTo(4);
+        assertThat(firstPage.get("items").size()).isEqualTo(2);
+        assertThat(firstPage.get("hasNext").asBoolean()).isTrue();
+        assertThat(firstPage.get("items").get(0).get("id").asLong()).isEqualTo(noteId);
+        assertThat(firstPage.get("items").get(1).get("id").asLong()).isEqualTo(repeatedId);
+        assertThat(firstPage.get("items").get(0).size()).isEqualTo(5);
+        assertThat(firstPage.get("items").get(0).has("content")).isFalse();
+        assertThat(firstPage.get("items").get(0).has("userId")).isFalse();
+        assertThat(firstPage.get("items").get(0).get("title").asText()).isEqualTo(title);
+        assertThat(Instant.parse(firstPage.get("items").get(0).get("updatedAt").asText()))
+                .isEqualTo(tieTime.plusSeconds(1).toInstant(ZoneOffset.UTC));
+        var secondPage = mapper.readTree(owner.get("/api/notes?page=1&size=2").getBody());
+        assertThat(secondPage.get("items").size()).isEqualTo(1);
+        assertThat(secondPage.get("items").get(0).get("id").asLong()).isEqualTo(unicodeId);
+        assertThat(secondPage.get("hasNext").asBoolean()).isFalse();
+        assertThat(mapper.readTree(owner.get("/api/notes?page=2&size=2").getBody()).get("items").size()).isZero();
+        assertThat(mapper.readTree(other.get("/api/notes?userId=" + ownerId).getBody()).get("items").size()).isZero();
+        assertThat(new HttpSessionTestClient(port, mapper).get("/api/notes").getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(owner.get("/api/notes?page=-1&size=2").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(owner.get("/api/notes?page=0&size=101").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
         assertCheckViolation(() -> insertDirect(ownerId, "", "test", 0), "ck_notes_title_length");
         assertCheckViolation(() -> insertDirect(ownerId, "test", "x".repeat(10001), 0), "ck_notes_content_length");
@@ -107,6 +139,158 @@ class NoteMySqlTests {
         assertThatThrownBy(() -> jdbc.update("DELETE FROM users WHERE id = ?", ownerId))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThat(count(ownerId)).isEqualTo(beforeConstraints);
+    }
+
+    @Test
+    void realMysqlUpdatesOnlyOwnedNoteAndPreservesImmutableFields() throws Exception {
+        assertThat(jdbc.queryForObject("SELECT DATABASE()", String.class)).isEqualTo("collab_notes");
+        var owner = new HttpSessionTestClient(port, mapper);
+        var other = new HttpSessionTestClient(port, mapper);
+        long ownerId = account(owner);
+        long otherId = account(other);
+        var original = createNote(owner, "old-title", "old-content");
+        long id = original.get("id").asLong();
+        var ownerUntouched = createNote(owner, "keep-owner", "keep-owner-content");
+        var otherUntouched = createNote(other, "keep-other", "keep-other-content");
+        jdbc.update("UPDATE notes SET is_completed = 1 WHERE id = ? AND user_id = ?", id, ownerId);
+        String title = " 修改后 🔔 ' OR 1=1 -- ";
+        String content = " 新正文\n保留空格和 emoji 🔔 ";
+        Instant before = Instant.now().minusSeconds(1);
+        var response = owner.put("/api/notes/" + id, Map.of("title", title, "content", content));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var updated = mapper.readTree(response.getBody());
+        assertThat(updated.size()).isEqualTo(6);
+        assertThat(updated.get("id").asLong()).isEqualTo(id);
+        assertThat(updated.get("title").asText()).isEqualTo(title);
+        assertThat(updated.get("content").asText()).isEqualTo(content);
+        assertThat(updated.get("completed").asBoolean()).isTrue();
+        assertThat(updated.get("createdAt")).isEqualTo(original.get("createdAt"));
+        Instant updatedAt = Instant.parse(updated.get("updatedAt").asText());
+        assertThat(updatedAt).isBetween(before, Instant.now());
+        jdbc.query("SELECT user_id, updated_at FROM notes WHERE id = ?", rs -> {
+            assertThat(rs.next()).isTrue();
+            assertThat(rs.getLong("user_id")).isEqualTo(ownerId);
+            assertThat(rs.getObject("updated_at", LocalDateTime.class).toInstant(ZoneOffset.UTC)).isEqualTo(updatedAt);
+            return null;
+        }, id);
+        assertThat(mapper.readTree(owner.get("/api/notes/" + id).getBody())).isEqualTo(updated);
+        var first = mapper.readTree(owner.get("/api/notes?page=1&size=1").getBody()).get("items").get(0);
+        assertThat(first.get("id").asLong()).isEqualTo(id);
+        assertThat(first.get("title").asText()).isEqualTo(title);
+        assertThat(first.has("content")).isFalse();
+
+        var denied = other.put("/api/notes/" + id + "?userId=" + ownerId,
+                Map.of("title", "attack-title", "content", "attack-content"));
+        var absent = other.put("/api/notes/" + Long.MAX_VALUE, Map.of("title", "attack-title", "content", "attack-content"));
+        assertThat(denied.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(absent.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(denied.getBody()).isEqualTo(absent.getBody()).doesNotContain(title, content);
+        assertThat(owner.put("/api/notes/" + id, Map.of("title", "test", "content", "test", "userId", otherId))
+                .getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(owner.put("/api/notes/" + id, Map.of("title", "🔔".repeat(121), "content", "test"))
+                .getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(new HttpSessionTestClient(port, mapper).put("/api/notes/" + id,
+                Map.of("title", "test", "content", "test")).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(mapper.readTree(owner.get("/api/notes/" + id).getBody())).isEqualTo(updated);
+
+        assertThat(owner.put("/api/notes/" + id,
+                Map.of("title", "🔔".repeat(120), "content", "🔔".repeat(10000))).getStatusCode()).isEqualTo(HttpStatus.OK);
+        var lengths = jdbc.queryForMap("SELECT CHAR_LENGTH(title) AS tl, CHAR_LENGTH(content) AS cl FROM notes WHERE id = ?", id);
+        assertThat(((Number) lengths.get("tl")).intValue()).isEqualTo(120);
+        assertThat(((Number) lengths.get("cl")).intValue()).isEqualTo(10000);
+        for (int i = 0; i < 2; i++) {
+            assertThat(owner.put("/api/notes/" + id, Map.of("title", "repeat-title", "content", ""))
+                    .getStatusCode()).isEqualTo(HttpStatus.OK);
+        }
+        var repeated = mapper.readTree(owner.get("/api/notes/" + id).getBody());
+        assertThat(repeated.get("content").asText()).isEmpty();
+        assertThat(repeated.get("createdAt")).isEqualTo(original.get("createdAt"));
+        assertThat(repeated.get("completed").asBoolean()).isTrue();
+        assertThat(count(ownerId)).isEqualTo(2);
+        assertThat(count(otherId)).isEqualTo(1);
+        assertThat(mapper.readTree(owner.get("/api/notes/" + ownerUntouched.get("id").asLong()).getBody()))
+                .isEqualTo(ownerUntouched);
+        assertThat(mapper.readTree(other.get("/api/notes/" + otherUntouched.get("id").asLong()).getBody()))
+                .isEqualTo(otherUntouched);
+    }
+
+    @Test
+    void realMysqlSetsCompletionExplicitlyAndKeepsTimeForSameTarget() throws Exception {
+        assertThat(jdbc.queryForObject("SELECT DATABASE()", String.class)).isEqualTo("collab_notes");
+        var owner = new HttpSessionTestClient(port, mapper);
+        var other = new HttpSessionTestClient(port, mapper);
+        long ownerId = account(owner);
+        long otherId = account(other);
+        var original = createNote(owner, " 完成测试 🔔 ", " 私人正文\n保留空格 🔔 ");
+        long id = original.get("id").asLong();
+        String path = "/api/notes/" + id + "/completion";
+        var ownerUntouched = createNote(owner, "keep-owner", "keep-owner-content");
+        var otherUntouched = createNote(other, "keep-other", "keep-other-content");
+
+        // 初始状态已是 false；不能因重复设置而修改时间或错误地返回 404。
+        var unchanged = owner.patch(path, Map.of("completed", false));
+        assertThat(unchanged.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(mapper.readTree(unchanged.getBody())).isEqualTo(original);
+        Instant before = Instant.now().minusSeconds(1);
+        var response = owner.patch(path, Map.of("completed", true));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var completed = mapper.readTree(response.getBody());
+        assertThat(completed.size()).isEqualTo(6);
+        assertThat(completed.get("id").asLong()).isEqualTo(id);
+        assertThat(completed.get("completed").asBoolean()).isTrue();
+        assertThat(completed.get("title")).isEqualTo(original.get("title"));
+        assertThat(completed.get("content")).isEqualTo(original.get("content"));
+        assertThat(completed.get("createdAt")).isEqualTo(original.get("createdAt"));
+        Instant updatedAt = Instant.parse(completed.get("updatedAt").asText());
+        assertThat(updatedAt).isBetween(before, Instant.now());
+        assertThat(updatedAt).isAfter(Instant.parse(original.get("updatedAt").asText()));
+        assertThat(updatedAt.getNano() % 1000).isZero();
+        assertThat(jdbc.queryForObject("SELECT user_id FROM notes WHERE id = ?", Long.class, id)).isEqualTo(ownerId);
+        assertThat(jdbc.queryForObject("SELECT is_completed FROM notes WHERE id = ?", Boolean.class, id)).isTrue();
+        assertThat(jdbc.queryForObject("SELECT updated_at FROM notes WHERE id = ?", LocalDateTime.class, id)
+                .toInstant(ZoneOffset.UTC)).isEqualTo(updatedAt);
+        assertThat(mapper.readTree(owner.patch(path, Map.of("completed", true)).getBody())).isEqualTo(completed);
+        assertThat(mapper.readTree(owner.get("/api/notes/" + id).getBody())).isEqualTo(completed);
+        var first = mapper.readTree(owner.get("/api/notes?page=1&size=1").getBody()).get("items").get(0);
+        assertThat(first.get("id").asLong()).isEqualTo(id);
+        assertThat(first.get("completed").asBoolean()).isTrue();
+        assertThat(first.get("updatedAt")).isEqualTo(completed.get("updatedAt"));
+        assertThat(first.has("content")).isFalse();
+
+        var reopenedResponse = owner.patch(path, Map.of("completed", false));
+        assertThat(reopenedResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var reopened = mapper.readTree(reopenedResponse.getBody());
+        assertThat(reopened.get("completed").asBoolean()).isFalse();
+        assertThat(Instant.parse(reopened.get("updatedAt").asText())).isAfter(updatedAt);
+        assertThat(reopened.get("title")).isEqualTo(original.get("title"));
+        assertThat(reopened.get("content")).isEqualTo(original.get("content"));
+        assertThat(reopened.get("createdAt")).isEqualTo(original.get("createdAt"));
+        assertThat(mapper.readTree(owner.patch(path, Map.of("completed", false)).getBody())).isEqualTo(reopened);
+        var denied = other.patch(path + "?userId=" + ownerId, Map.of("completed", true));
+        var missing = other.patch("/api/notes/" + Long.MAX_VALUE + "/completion", Map.of("completed", true));
+        assertThat(denied.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(denied.getBody()).isEqualTo(missing.getBody()).doesNotContain("私人正文");
+        assertThat(owner.patch(path, Map.of("completed", true, "userId", otherId)).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(owner.patch(path, Map.of("completed", "true")).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(owner.patch(path, Map.of("completed", 1)).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(new HttpSessionTestClient(port, mapper).patch(path, Map.of("completed", true)).getStatusCode())
+                .isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(mapper.readTree(owner.get("/api/notes/" + id).getBody())).isEqualTo(reopened);
+        assertThat(count(ownerId)).isEqualTo(2);
+        assertThat(count(otherId)).isEqualTo(1);
+        assertThat(mapper.readTree(owner.get("/api/notes/" + ownerUntouched.get("id").asLong()).getBody()))
+                .isEqualTo(ownerUntouched);
+        assertThat(mapper.readTree(other.get("/api/notes/" + otherUntouched.get("id").asLong()).getBody()))
+                .isEqualTo(otherUntouched);
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode createNote(HttpSessionTestClient client, String title, String content)
+            throws Exception {
+        var result = client.post("/api/notes", Map.of("title", title, "content", content));
+        assertThat(result.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return mapper.readTree(result.getBody());
     }
 
     private long account(HttpSessionTestClient client) throws Exception {
