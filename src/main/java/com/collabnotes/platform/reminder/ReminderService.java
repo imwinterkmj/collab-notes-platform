@@ -6,6 +6,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.format.DateTimeParseException;
 
 import com.collabnotes.platform.note.NoteRepository;
+import com.collabnotes.platform.sync.NoteChangeBus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReminderService {
     private final NoteRepository notes;
     private final ReminderRepository reminders;
-    public ReminderService(NoteRepository notes, ReminderRepository reminders) {
+    private final NoteChangeBus changes;
+    public ReminderService(NoteRepository notes, ReminderRepository reminders, NoteChangeBus changes) {
         this.notes = notes;
         this.reminders = reminders;
+        this.changes = changes;
     }
     public ReminderResponse get(long noteId, long userId) {
         return reminders.findOwned(noteId, userId).orElseThrow(ReminderException::missing);
@@ -36,7 +39,9 @@ public class ReminderService {
         var existing = reminders.findOwned(noteId, userId);
         if (existing.isEmpty()) { reminders.insert(noteId, due, now); }
         else { reminders.reschedule(existing.get().id(), due, now); }
-        return reminders.findOwned(noteId, userId).orElseThrow(ReminderException::missing);
+        var reminder = reminders.findOwned(noteId, userId).orElseThrow(ReminderException::missing);
+        changes.afterCommit(userId);
+        return reminder;
     }
     @Transactional
     public void cancel(long noteId, long userId) {
@@ -46,5 +51,6 @@ public class ReminderService {
             throw new ReminderException(409, "ALREADY_FIRED", "站内通知已生成，不能撤回；可以重新设置提醒");
         }
         reminders.cancelPending(noteId, Instant.now().truncatedTo(ChronoUnit.MICROS));
+        changes.afterCommit(userId);
     }
 }

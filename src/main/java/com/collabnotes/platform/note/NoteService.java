@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 import com.collabnotes.platform.reminder.ReminderRepository;
+import com.collabnotes.platform.sync.NoteChangeBus;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,17 +14,20 @@ public class NoteService {
     private final NoteRepository notes;
     private final ReminderRepository reminders;
     private final NoteTrashRepository trash;
+    private final NoteChangeBus changes;
 
-    public NoteService(NoteRepository notes, ReminderRepository reminders, NoteTrashRepository trash) {
+    public NoteService(NoteRepository notes, ReminderRepository reminders, NoteTrashRepository trash, NoteChangeBus changes) {
         this.notes = notes;
         this.reminders = reminders;
         this.trash = trash;
+        this.changes = changes;
     }
 
     public NoteResponse create(long userId, CreateNoteRequest request) {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         // 当前只有一条 INSERT，由数据库保证语句原子性；暂不扩大事务范围。
         long id = notes.insert(userId, request.title(), request.content(), now);
+        changes.afterCommit(userId);
         return new NoteResponse(id, request.title(), request.content(), false, now, now);
     }
 
@@ -36,7 +40,9 @@ public class NoteService {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         notes.updateOwnedById(noteId, userId, request.title(), request.content(), now);
         // 同一事务读取；失败回滚。归属限定在两条 SQL 中，不依赖驱动的更新行数语义。
-        return notes.findOwnedById(noteId, userId).orElseThrow(NoteNotFoundException::new);
+        var note = notes.findOwnedById(noteId, userId).orElseThrow(NoteNotFoundException::new);
+        changes.afterCommit(userId);
+        return note;
     }
 
     public NotePageResponse list(long userId, int page, int size) {
@@ -52,6 +58,7 @@ public class NoteService {
         notes.setCompletionOwnedById(noteId, userId, request.completed(), now);
         var note = notes.findOwnedById(noteId, userId).orElseThrow(NoteNotFoundException::new);
         if (request.completed()) { reminders.cancelPending(noteId, now); }
+        changes.afterCommit(userId);
         return note;
     }
 
@@ -63,6 +70,7 @@ public class NoteService {
         // 快照、删除及上限清理同一事务；现有外键级联移除提醒/通知，恢复不重启旧提醒。
         if (notes.deleteOwnedById(noteId, userId) == 0) { throw new NoteNotFoundException(); }
         trash.trimOwned(userId);
+        changes.afterCommit(userId);
     }
 
     public TrashPageResponse trash(long userId) {
@@ -75,6 +83,8 @@ public class NoteService {
         var snapshot = trash.lockOwned(trashId, userId).orElseThrow(NoteNotFoundException::new);
         long id = notes.insertRestored(userId, snapshot, Instant.now().truncatedTo(ChronoUnit.MICROS));
         if (trash.deleteOwned(trashId, userId) != 1) { throw new NoteNotFoundException(); }
-        return notes.findOwnedById(id, userId).orElseThrow(NoteNotFoundException::new);
+        var note = notes.findOwnedById(id, userId).orElseThrow(NoteNotFoundException::new);
+        changes.afterCommit(userId);
+        return note;
     }
 }

@@ -206,9 +206,102 @@ KEEP 不递增 generation 或重排已触发提醒，CANCEL 对无任务/FIRED �
 本地网页 MVP 功能验收与统一保存 MySQL 补验已完成；复盘和 Git 版本保存仍待用户指示，不擅自提交或推送、下载或部署。
 包结构说明见 docs/common/code-structure.md：按 user/auth/note/reminder/config 分类，一个单体，不是微服务；不借目录问题擅自重构包名或预建模块。
 
+2026-10-08 用户明确最终需要可安装的手机 App，先做 vivo 安卓，iPhone 后续兼容；没有服务器和域名。
+用户使用 vivo 自带浏览器/夸克，不要求改用 Chrome，不把 PWA 或网页套壳自动视为最终 App 与可靠后台提醒已完成。
+仅获准下载 cloudflared；已从 Cloudflare 官方 GitHub 下载 Windows x64 2026.10.0，保存到
+`D:\DevTools\cloudflared\2026.10.0\cloudflared.exe`，55,365,048 字节，官方 SHA-256 匹配，--version 核验通过，
+tunnel --help 已确认支持 allowed-mail。仅执行版本/帮助命令，未启动隧道、安装服务、修改 PATH 或防火墙。
+HTTPS 联调需先准备隔离测试环境与专用凭据、确认访问限制，再另行确认启动入口；不直接公开弱密码学习账号与数据。
+Quick Tunnel 邮箱验证需要交互式浏览器，不直接适用于原生 HTTP 客户端；App 联调方式另行选择。
+安卓原生或跨端客户端技术尚未选定；未下载 Android Studio、Android SDK、Gradle、Flutter、推送 SDK 或其他依赖。
+后续分别设计已同步任务的设备端定时与跨端同步/推送，明确离线旧计划、改期/取消、权限、省电与强行停止的边界。
+本轮只更新客户端路线与下载记录，不改业务代码、数据库、账号或数据卷，不提交或推送 Git。
+具体 vivo 型号与 Android 版本待用户提供；App 安装包、手机实测、后台提醒及部署均未完成。
+
+2026-10-08 用户提供 vivo X100s（V2359A）、OriginOS 5；截图未明确显示 Android 系统版本，不从内核 android14 推断。
+用户现已同意 Flutter 客户端方案，授权按清单下载、配置 Flutter、Android Studio、SDK 和必要构建依赖到 D 盘，不安装模拟器。
+已下载并核验 Flutter 3.47.6 / Dart 3.13.5、Android Studio Rabbit 1 2026.2.1.8、Command-line Tools 22.0（15859902）；
+前三项已解压到 D:\DevTools\flutter、AndroidStudio 和 AndroidSDK\cmdline-tools\22.0，版本/产品元数据检查通过。
+已备齐、核验 SDK API 36 revision 2、Build-Tools 36.0.0、Platform-Tools 37.0.1、NDK 28.2.13676358、Gradle 9.3.1 压缩包，保存在 D:\DevTools\Downloads。
+用户级 ANDROID_HOME、GRADLE_USER_HOME、PUB_CACHE 已设置为 D 盘目录，用户 PATH 保留原项追加必要 bin；Flutter 指向现有 JDK 21。
+未改原 JAVA_HOME/Maven，Java/Maven 再核验正常；Flutter 已初始化且关闭统计。没有安装 IDE 插件、模拟器或系统镜像。
+随后用户明确同意接受 SDK 许可；已通过官方 SDK 安装流程接受 android-sdk-license，安装 ADB，复用已校验归档安装 SDK 36、Build-Tools 和 NDK。
+Gradle 9.3.1 归档复用到 D 盘 Wrapper 缓存，由 Wrapper 正常解压，实际运行使用原 JDK 21；必要 Flutter/Gradle 插件依赖已缓存。
+内置 android.exe 入口首次启动取得官方 Android CLI 1.0.16500706，后续诊断用 --no-metrics，不运行 init 或安装额外技能。
+在 Git 已忽略的 target/android-environment-check-20261008 生成独立工具链验收示例；analyze 无问题、1 项组件测试通过、ARM64 debug APK 实际构建通过。
+APK 77,246,681 字节，minSdk 24/targetSdk 36，v2 签名核验通过；不是正式备忘录 App、上架包或手机实测，不把 324.5 秒首次编译写为业务性能数据。
+doctor 已识别 SDK/JDK，仍有未使用组件的额外许可提示；只接受普通 SDK 许可，不为全绿而接受 TV/XR/预览版/Glass/系统镜像等无关许可。
+构建有 SDK XML 兼容提示，未阻止本次 APK 成功；不宣称所有诊断无警告。NDK/命令行工具版本同时核对 source.properties，不只看目录名。
+没有安装模拟器/系统镜像/IDE 插件、启动 IDE 界面、连接 vivo 或安装手机应用；没有修改后端业务/数据库、启动隧道、改防火墙或 Git 提交/推送。
+详情见 docs/common/mobile-development-environment.md；下一步连接 vivo 读取系统版本与设备识别，正式 App、接口联调和设备提醒另按小目标实现。
+
+2026-10-09 用户明确最终同时需要可安装的 Windows 桌面 App 与安卓 App，要求下一步推进两端，不以电脑网页代替桌面客户端；iPhone 后续兼容。
+使用一套 Flutter 客户端，正式目录计划为 client/（mobile/ 仅是先前建议，两个目录均未创建），共享界面、数据模型和 API 调用，平台提醒分别适配。
+顺序为共同骨架 → 安卓登录/备忘录小闭环 → 同代码验证 Windows → 分别补安卓系统通知/定时与 Windows 托盘后台提醒 → 双端同步边界验收。
+不要等安卓全部功能结束才开始 Windows，也不要写成两套独立业务 App 或重写现有后端；Session/Cookie/CSRF、用户隔离与手动 SQL 约定保留。
+已通过 USB 只读查询确认 vivo 为 Android 15/API 35；用户确认测试 APK 安装、打开和计数交互无问题，这是用户反馈，不是代理手机 UI 实测。
+已有 Visual Studio 2022 Community 的 C++ 构建工具和 Flutter windows-x64 缓存，本轮只核验存在，尚未编译或运行 Windows 示例。
+正式客户端、后台提醒及跨设备同步未实现；电脑关闭主窗口留托盘与彻底退出必须区分，休眠/关机/强行停止不承诺准时提醒。
+本轮只明确顺序并同步文档，没有创建 client/、下载依赖、改后端/数据库、打开公网、提交或推送；新平台插件/工具下载仍先告知并征同意。
+
+2026-10-09 用户授权开始搭建两端共用客户端，已创建 client/ Flutter 项目，同时包含 android/windows；mobile/ 未创建。
+本轮先完成明确标注的离线演示骨架：中文入口、未完成优先列表/搜索/筛选、编辑弹窗和新建即可选时间的统一保存、完成与最近 30 条回收站。
+演示只在内存，不连接后端、不收集账号密码；退出演示或重开程序重置。ReminderAction 是时间字段演示，不注册定时器或发送通知。
+齿轮只保留两个未接入且禁用的全局开关；实际铃声/图片导入、偏好持久化、通知历史、登录与多端同步还未迁移，不把网页已有能力算入 App。
+复用已有 SDK/依赖缓存：pub get --offline，Gradle --offline --no-daemon；没有新下载、平台插件或许可证接受，没有改全局工具配置。
+flutter analyze --no-pub 无问题；34 项测试通过（19 领域/内存仓库、15 入口/组件），覆盖时间/Unicode、草稿保留、回收站及窄屏大字体/键盘、宽窗。
+另 4 项组件预览生成通过，使用本机已有中文字体，图片只在已忽略的 target/client-previews；已查看手机主页/编辑与电脑主页渲染，不是真机截图或已有基准的视觉回归测试。
+安卓 ARM64 debug APK 构建、v2 签名核验通过，client/build/app/outputs/flutter-apk/app-debug.apk 为 78,858,265 字节，0.1.0+1、minSdk 24/targetSdk 36。
+Windows x64 release 构建通过，client/build/windows/x64/runner/Release/ 共 12 个文件、29,123,382 字节；中文代码页问题通过 /utf-8 修复。
+Android 模板仍有 AGP/Kotlin 旧 DSL 弃用和 SDK XML 兼容警告，不宣称全部诊断无警告；没有为此下载新版本。
+Windows 目前是完整可运行目录，不是正式安装器/签名分发；不可只复制 exe。当前关窗口退出进程，无托盘/后台提醒，手机也没有系统定时/锁屏提醒。
+没有自动安装新 APK 到手机、打开 Windows 窗口或取得原生交互截图，本轮 UI 手动验收待用户完成；旧计数器验收不代替备忘录界面验收。
+没有改后端业务/认证/CSRF、访问或修改学习数据库/表/卷、重跑 Java/网页测试、启动隧道、改防火墙、提交或推送 Git；保留已有用户改动。
+说明与必要 CMD 验收入口见 docs/phase-1/client-scaffold.md；下一步加真实 HTTP 数据访问，安卓小闭环后立即联调 Windows。
+真实凭据联网前先隔离测试数据并准备安全 HTTPS，保留 Session/Cookie/CSRF 和归属限制，不公开弱密码学习环境；新插件下载和网络入口仍各自确认。
+
+2026-10-09 用户反馈双端离线骨架基本没问题，授权接真实账号/备忘录 API，另明确同意 USB + 本机 HTTPS 联调。
+同一 client/ 已接注册、登录、退出、本人分页/详情、统一保存 SET/KEEP/CANCEL、完成、删除与回收站；保留离线演示入口但不混入真实数据。
+后端业务/表不改，Session/Cookie/CSRF/用户隔离保留；客户端 Cookie/token 仅内存，不保存密码/会话文件，不引入 JWT 或 CORS 放宽。
+列表按页读取摘要，每页 20，最多 1000 条，搜索/筛选仅已加载标题；点开先读完整正文/提醒，不能把摘要空正文提交覆盖。
+同账号手动刷新共享服务器记录，不声称实时同步、离线编辑或版本冲突检测；仍最后写入覆盖，OFFSET 无并发快照保证。
+登录轮换会话后重取 CSRF；只对安全过滤器 CSRF_INVALID 安全重试一次，不自动重放超时/断网/5xx/401 写入。
+失败保留编辑草稿，401 可重登同一账号且不自动提交；不确定写入需先核对再明确继续，新建第一页核对不是 POST 幂等。
+错误不显示原响应/SQL/秘密，退出失败只称本机凭据清除、不称服务端退出已确认；API 不跟随重定向。
+本机证书由已有 JDK 生成，材料在已忽略的 target/local-https/；私钥 p12、server-local.json 与 server-env.cmd 含秘密，不得提交/截图输出。
+客户端只编入公开证书；DER 在 Dart 信任入口转换 PEM，不设置 badCertificateCallback，保留有效期/主机名验证，自定义证书仅回环 HTTPS。
+电脑后端配置只监听 127.0.0.1:8443，手机通过 ADB reverse；未安装系统证书、启动公网隧道或服务、改防火墙/全局 PATH。
+新建证书后需重编客户端；mvn clean 会清理 target 内的开发证书，不能清理后仍宣称旧包可直接连接新证书。
+Flutter analyze 无问题、67 项常规测试通过；单独真实 Dart IO HTTPS → 原 Spring Security/Controller/Repository → 临时 H2 合同 7 项通过。
+合同测试 ClientHttpContractTests 默认 RUN_CLIENT_HTTP_TESTS 跳过，随机回环 HTTPS 端口、强制 H2/init schema、关闭自身扫描，不读 .env/连接学习 MySQL。
+Java 普通离线回归 295 项：284 通过、11 跳过（10 MySQL + 1 上述独立 HTTPS 入口），单独入口与普通跳过分别记录，不冒充 MySQL 或压测。
+6 项组件渲染预览通过并查看登录、手机/电脑账号布局，仅替身账号和已有中文字体，不是真机截图或有基准的视觉回归。
+0.2.0+2 安卓 ARM64 debug APK 构建/v2 签名与 Windows x64 release 构建通过；安卓正常增加 INTERNET 权限，不放开明文/任意证书。
+Windows 仍是完整 Release 目录，不是正式安装器；关窗口仍退出，无托盘，手机无系统通知/锁屏定时，声音/素材导入也未接入。
+同一 client/ 的安卓 debug 与 Windows release 构建不要并行：共享 Flutter 资产目录可能竞争；最后单独重建安卓并核验 APK 包含 kernel_blob.bin。
+本轮无新下载、后端业务/表/学习数据或卷变更、Git 提交/推送；未自动安装新版 APK/打开 Windows，实际双端联动待用户验收。
+用户验收见 docs/phase-1/client-api.md，使用 CMD；手动 HTTPS 启动需先停止旧后端，不双开学习调度扫描。当前手机联网需要 USB 和电脑后端运行。
+后续顺序：确认新版真实账号双端闭环，再分别接安卓系统通知/定时、Windows 托盘后台提醒；任何新插件/工具下载仍先征同意。
+
+2026-10-09 用户反馈真实账号客户端其他交互基本没问题，明确要求另一端自动同步，不再依赖手动刷新。
+已在现有单体增加认证 GET /api/notes/changes 与 NoteChangeBus，DeferredResult 长轮询最多约 8 秒心跳；提交后才唤醒，无变化不查数据库。
+NoteService/ReminderService 提交后钩子同事务合并，回滚不误报，不改业务 SQL、表、认证/CSRF 或引入依赖；网页应用写入也产生信号，网页列表未自动化。
+单实例游标只存内存，不含正文/事件历史/用户凭据；全局等待 256、同账号 4、账号缓存 512，空闲 5 分钟惰性清理，超限 429/503。
+资源限制不是容量成绩；不是持久化消息或设备回执，直接 SQL 不发信号，多实例共享发布/会话未实现。
+client/ 0.3.0+3 前台自动长轮询，最小间隔 250ms，断线 1/2/4/8/16/30 秒退避重连，重连先核对数据，不重放写入。
+保留已加载页/搜索/筛选/导航；编辑期间只提示账号有变化，不覆盖标题正文时间草稿，已有记录继续保存前确认。
+提示不是单条版本检测，其他记录也会触发，仍最后写入覆盖；后台/隐藏暂停，恢复前台补查，旧在途请求结束前不叠加。
+Cookie/CSRF/游标只在内存；退出/重登录隔离旧响应。前台请求延续服务端会话，30 分钟空闲按请求活动，不按用户手势。
+Flutter 常规 76 项通过、analyze 无问题；Java 普通离线 300 项：289 通过、11 跳过（10 MySQL+独立 HTTPS 入口）。
+独立 10 项真实 Dart IO HTTPS → 原安全/事务/JDBC → 临时 H2 合同通过，新增提交后唤醒、回滚不发信号、心跳与账号隔离；不冒充 MySQL/压测/手机实测。
+未访问或修改学习 MySQL/表/卷，无新下载/新插件/公网/防火墙/证书重建/Git 提交或推送；旧真实账号反馈不等于新自动同步已验收。
+0.3 验收见 docs/phase-1/client-auto-sync.md，CMD 约定不变；需要重启后端和更新两个客户端，不自动安装或启动用户窗口。
+0.3.0+3 Windows x64 release 与安卓 ARM64 debug 已依次离线构建通过，APK 签名/版本/正常应用入口核验通过；Windows 目录共 12 文件、29,549,166 字节。
+关页/锁屏/声音/托盘后台仍未接入，下一步按平台分别实现；不把前台同步等同可靠后台通知。
+
 ## 项目业务定位与教学方式
 
-- 项目面向电脑和手机使用，核心是备忘录、多端数据同步和可靠定时提醒。
+- 项目面向可安装的 Windows 桌面 App 和安卓 App，iPhone 后续兼容；核心是备忘录、多端数据同步和可靠定时提醒，网页入口继续保留。
 - 不再按多人协作知识库设计当前核心业务；工作区、共享链接和协作角色不作为第一版前提。
 - 当前已完成最小注册与登录；业务实现按后续教学小步骤推进，不把“继续设计”扩大为全部开发。
 - 仓库名 `collab-notes-platform`、Java 包名和数据库名暂时沿用现有标识。

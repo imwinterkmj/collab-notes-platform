@@ -1,0 +1,21 @@
+name: collab_notes_client
+description: 备忘录平台的安卓与 Windows 共用客户端。
+publish_to: 'none'
+version: 0.3.0+3
+
+environment:
+  sdk: '>=3.13.5 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: 6.0.0
+
+flutter:
+  uses-material-design: true

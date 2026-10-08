@@ -35,9 +35,7 @@
 - 用户表手动建表脚本，本地已执行并核验；不会在应用启动时自动执行。
 - Argon2id 密码哈希配置与测试，已接入注册及登录校验。
 - `POST /api/users/register` 注册接口，以及输入校验、用户名冲突和异常响应处理。
-
 - Spring Security + Session + Cookie 登录、当前用户查询、退出和 CSRF 防护。
-
 - 已在本机建立 notes 表；实现创建、本人详情、分页列表及 `PUT /api/notes/{id}` 编辑。
 - `PATCH /api/notes/{id}/completion` 标记完成或恢复未完成；同值重复请求保持更新时间不变。
 - 本人删除、持久化一次性提醒、事务调度、通知分页与已读；新增 reminders/notifications 两张表。
